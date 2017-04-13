@@ -565,8 +565,12 @@
           (fxnonfixnum1 'fxcopy-bit k))
       (fxnonfixnum1 'fxcopy-bit n)))
 
+(define-library-entry (fxpopcount x)
+  (fxnonfixnum1 'fxpopcount x))
+
 (define-library-entry (fxlogtest x y) (fxnonfixnum2 'fxlogtest x y))
 )
+
 
 (let ()
   (define flonum-oops

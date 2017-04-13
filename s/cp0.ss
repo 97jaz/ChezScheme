@@ -2491,7 +2491,8 @@
         (fold (fxeven? tfixnum?) boolean? even?)
         (fold (fxodd? tfixnum?) boolean? odd?)
         (fold (fxnonnegative? tfixnum?) boolean? nonnegative?)
-        (fold (fxnonpositive? tfixnum?) boolean? nonpositive?))
+        (fold (fxnonpositive? tfixnum?) boolean? nonpositive?)
+        (fold (fxpopcount tfixnum?) tfixnum? #2%fxpopcount))
 
       (let ()
         (define target-wchar?

@@ -280,7 +280,7 @@ typedef char *memcpy_t;
 typedef int tputsputcchar;
 #define LOCKF
 #define DIRMARKERP(c) ((c) == '/')
-#define LIBX11 "/usr/X11R6/lib/libX11.dylib"
+/* #define LIBX11 "/usr/X11R6/lib/libX11.dylib" */
 #define _DARWIN_USE_64_BIT_INODE
 #define SECATIME(sb) (sb).st_atimespec.tv_sec
 #define SECCTIME(sb) (sb).st_ctimespec.tv_sec

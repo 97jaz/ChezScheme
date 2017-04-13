@@ -1,6 +1,5 @@
 ;;; x86_64.ss
 ;;; Copyright 1984-2017 Cisco Systems, Inc.
-;;; 
 ;;; Licensed under the Apache License, Version 2.0 (the "License");
 ;;; you may not use this file except in compliance with the License.
 ;;; You may obtain a copy of the License at
@@ -669,6 +668,14 @@
         `(set! ,(make-live-info) ,z ,x)
         `(set! ,(make-live-info) ,z (asm ,info ,asm-lognot ,z)))])
 
+  (define-instruction value (popcnt)
+    [(op (z ur) (x z) (y ur mem))
+     `(set! ,(make-live-info) ,z (asm ,info ,asm-popcnt ,z ,y))]
+    [(op (z ur) (x z) (y imm32))
+     (seq
+      `(set! ,(make-live-info) ,z ,y)
+      `(set! ,(make-live-info) ,z (asm ,info ,asm-popcnt ,z ,z)))])
+
   ; TODO: use lea for certain constant shifts when x != z
   (define-instruction value (sll srl sra)
     (definitions
@@ -970,7 +977,7 @@
 (module asm-module (; required exports
                      asm-move asm-move/extend asm-load asm-store asm-swap asm-library-call asm-library-jump
                      asm-mul asm-muli asm-addop asm-add asm-sub asm-negate asm-sub-negate
-                     asm-pop asm-shiftop asm-sll asm-logand asm-lognot
+                     asm-pop asm-shiftop asm-sll asm-logand asm-lognot asm-popcnt
                      asm-logtest asm-fl-relop asm-relop asm-push asm-indirect-jump asm-literal-jump
                      asm-direct-jump asm-return-address asm-jump asm-conditional-jump asm-data-label asm-rp-header
                      asm-lea1 asm-lea2 asm-indirect-call asm-condition-code
@@ -1153,6 +1160,9 @@
   (define-op sse.subsd     sse-op1 #xF2 #x5C 0)
   (define-op sse.ucomisd   sse-op1 #x66 #x2E 0)
   (define-op sse.xorpd     sse-op1 #x66 #x57 0)
+
+  ; SSE4 instructions
+  (define-op sse.popcnt    sse-op1 #xF3 #xB8 1)
 
   (define sse-op1
     (lambda (op prefix-code op-code w source dest-reg code*)
@@ -2078,6 +2088,12 @@
       (Trivit (dest)
         (safe-assert (equal? (Triv->rand src) dest))
         (emit not dest code*))))
+
+  (define asm-popcnt
+    (lambda (code* dest src0 src1)
+      (Trivit (dest)
+              (safe-assert (equal? (Triv->rand src0 dest)))
+              (emit sse.popcnt src1 dest code*))))
 
   (define asm-lea1
     (lambda (offset)

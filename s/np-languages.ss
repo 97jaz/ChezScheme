@@ -553,6 +553,7 @@
   (declare-primitive * value #t)
   (declare-primitive */ovfl value #f)
   (declare-primitive pop value #f)
+  (declare-primitive popcnt value #t)
   (declare-primitive read-performance-monitoring-counter value #t) ; on x86/x86_64 actually side-effects edx/rdx
   (declare-primitive read-time-stamp-counter value #t) ; on x86/x86_64 actually side-effects edx/rdx
   (declare-primitive sext8 value #t)

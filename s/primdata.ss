@@ -1324,6 +1324,7 @@
   (fxmodulo [sig [(fixnum fixnum) -> (fixnum)]] [flags arith-op cp02])
   (fxnonnegative? [sig [(fixnum) -> (boolean)]] [flags pure cp02])
   (fxnonpositive? [sig [(fixnum) -> (boolean)]] [flags pure cp02])
+  (fxpopcount [sig [(fixnum) -> (fixnum)]] [flags arith-op cp02])
   (fxquotient [sig [(fixnum fixnum ...) -> (fixnum)]] [flags arith-op partial-folder])
   (fxremainder [sig [(fixnum fixnum) -> (fixnum)]] [flags arith-op cp02])
   (fxsll [sig [(fixnum sub-ufixnum) -> (fixnum)]] [flags arith-op cp02])

@@ -2383,6 +2383,7 @@
      (fxlogxor #f 2 #t #t)
      (fxlogand #f 2 #t #t)
      (fxlognot #f 1 #t #t)
+     (fxpopcount #f 1 #t #t)
      (fxsll #f 2 #f #t)
      (fxsrl #f 2 #t #t)
      (fxsra #f 2 #t #t)

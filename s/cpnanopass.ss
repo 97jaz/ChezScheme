@@ -3907,6 +3907,13 @@
                                ,(build-libcall #t src sexpr name e)))]))]))
           (fxlognotop fxlognot)
           (fxlognotop fxnot))
+        (define-inline 3 fxpopcount
+          [(e) (build-fix (%inline popcnt ,e))])
+        (define-inline 2 fxpopcount
+          [(e) (bind #t (e)
+                 `(if ,(%type-check mask-fixnum type-fixnum ,e)
+                      ,(build-fix (%inline popcnt ,e))
+                      ,(build-libcall #t src sexpr fxpopcount e)))])
         (define-inline 3 $fxu<
           [(e1 e2) (or (relop-length '< e1 e2)
                        (%inline u< ,e1 ,e2))])
