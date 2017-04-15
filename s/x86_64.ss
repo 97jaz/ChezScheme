@@ -669,12 +669,17 @@
         `(set! ,(make-live-info) ,z (asm ,info ,asm-lognot ,z)))])
 
   (define-instruction value (popcnt)
-    [(op (z ur) (x z) (y ur mem))
-     `(set! ,(make-live-info) ,z (asm ,info ,asm-popcnt ,z ,y))]
-    [(op (z ur) (x z) (y imm32))
+    [(op (z ur) (x ur mem))
+     `(set! ,(make-live-info) ,z (asm ,info ,asm-popcnt ,z ,x))]
+    [(op (z ur) (x imm32))
      (seq
-      `(set! ,(make-live-info) ,z ,y)
-      `(set! ,(make-live-info) ,z (asm ,info ,asm-popcnt ,z ,z)))])
+      `(set! ,(make-live-info) ,z ,x)
+      `(set! ,(make-live-info) ,z (asm ,info ,asm-popcnt ,z ,z)))]
+    [(op (z mem) (x ur mem imm32))
+     (let ([t (make-tmp 'u)])
+       (seq
+	`(set! ,(make-live-info) ,t ,x)
+	`(set! ,(make-live-info) ,z (asm ,info ,asm-popcnt ,t ,t))))])
 
   ; TODO: use lea for certain constant shifts when x != z
   (define-instruction value (sll srl sra)
@@ -2091,9 +2096,9 @@
 
   (define asm-popcnt
     (lambda (code* dest src0 src1)
-      (Trivit (dest)
-              (safe-assert (equal? (Triv->rand src0) dest))
-              (emit sse.popcnt src1 dest code*))))
+      (Trivit (dest src1)
+        (safe-assert (equal? (Triv->rand src0) dest))
+	(emit sse.popcnt src1 dest code*))))
 
   (define asm-lea1
     (lambda (offset)
