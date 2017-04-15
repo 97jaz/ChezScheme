@@ -3,9 +3,9 @@
 ;;; Licensed under the Apache License, Version 2.0 (the "License");
 ;;; you may not use this file except in compliance with the License.
 ;;; You may obtain a copy of the License at
-;;; 
+;;;
 ;;; http://www.apache.org/licenses/LICENSE-2.0
-;;; 
+;;;
 ;;; Unless required by applicable law or agreed to in writing, software
 ;;; distributed under the License is distributed on an "AS IS" BASIS,
 ;;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -818,7 +818,7 @@
   (define-instruction effect inc-cc-counter
     [(op (x ur) (y imm32 ur) (z imm32 ur)) `(asm ,info ,asm-inc-cc-counter ,x ,y ,z)])
 
-  (define-instruction effect inc-profile-counter 
+  (define-instruction effect inc-profile-counter
     [(op (x ur mem) (y imm32 ur)) `(asm ,info ,asm-inc-profile-counter ,x ,y)])
 
   (define-instruction value (trunc)
@@ -1090,7 +1090,7 @@
   (define-op cmp  (#;b *) binary-op #b001110)
   (define-op xchg (#;b *) xchg-op   #b1000011)
   (define-op bswap (#;l *) bswap-op)
- 
+
   (define-op divsax (*) unary-op   #b1111011  #b111)
   #;(define-op mulsax (*) unary-op   #b1111011  #b100)
   (define-op muls mulq-op #b10101111)
@@ -1491,7 +1491,7 @@
                      (emit-code (op disp code*)
                        (build byte #b11101001)
                        (build long offset)))]
-        [else 
+        [else
           (emit-code (op disp code*)
             (build byte #b11101001)
             (ax-ea-branch-disp disp))])))
@@ -1612,7 +1612,7 @@
                    (and maybe-reg (rex-required? maybe-reg)))
                b)))
       (record-case ea
-        [(index) (size index-reg base-reg) 
+        [(index) (size index-reg base-reg)
          (build-rex
            (fxsrl (reg-mdinfo index-reg) 3)
            (fxsrl (reg-mdinfo base-reg) 3))]
@@ -2092,7 +2092,7 @@
   (define asm-popcnt
     (lambda (code* dest src0 src1)
       (Trivit (dest)
-              (safe-assert (equal? (Triv->rand src0 dest)))
+              (safe-assert (equal? (Triv->rand src0) dest))
               (emit sse.popcnt src1 dest code*))))
 
   (define asm-lea1
@@ -2606,20 +2606,20 @@
                    |    incoming stack args    |
                    |                           |
                    +---------------------------+ <- 16-byte boundary
-                   |                           | 
+                   |                           |
                    |  space for register args  | four quads
-            sp+80: |                           | 
+            sp+80: |                           |
                    +---------------------------+ <- 16-byte boundary
                    |   incoming return address | one quad
       incoming sp: +---------------------------+
                    |                           |
                    |   callee-save registers   | RBX, RBP, RDI, RSI, R12, R13, R14, R15 (8 quads)
-                   |                           | 
+                   |                           |
                    +---------------------------+
                    |         pad word          | one quad
              sp+0: +---------------------------+<- 16-byte boundary
-      
-      
+
+
       Standard:
                    Frame Layout
                    +---------------------------+
@@ -2631,13 +2631,13 @@
                    +---------------------------+
                    |         pad word          | one quad
                    +---------------------------+<- 16-byte boundary
-                   |                           | 
+                   |                           |
                    |    saved register args    | space for Carg*, Cfparg* (14 quads)
             sp+48: |                           |
                    +---------------------------+<- 16-byte boundary
                    |                           |
                    |   callee-save registers   | RBX, RBP, R12, R13, R14, R15 (6 quads)
-                   |                           | 
+                   |                           |
              sp+0: +---------------------------+<- 16-byte boundary
       |#
       (with-output-language (L13 Effect)
@@ -2804,7 +2804,7 @@
                            ,(%inline push ,%r15)
                            ,(save-arg-regs arg-type*)))
                       ,(if-feature pthreads
-                         (%seq 
+                         (%seq
                            (set! ,%rax ,(%inline get-tc))
                            (set! ,%tc ,%rax))
                          `(set! ,%tc (literal ,(make-info-literal #f 'entry (lookup-c-entry thread-context) 0))))))
