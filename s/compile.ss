@@ -636,8 +636,10 @@
                         (let ([x ((run-cp0)
                                   (lambda (x)
                                     (set! cpletrec-ran? #t)
-                                    (let ([x ($pass-time 'cp0 (lambda () (do-trace $cp0 x)))])
-                                      ($pass-time 'cpletrec (lambda () (do-trace $cpletrec x)))))
+                                    (let* ([x ($pass-time 'cp0 (lambda () (do-trace $cp0 x)))]
+                                           [x ($pass-time 'cptypes (lambda () (do-trace $cptypes x)))]
+                                           [x ($pass-time 'cpletrec (lambda () (do-trace $cpletrec x)))])
+                                      x))
                                   x2)])
                           (if cpletrec-ran? x ($pass-time 'cpletrec (lambda () (do-trace $cpletrec x))))))]
                  [x2b ($pass-time 'cpcheck (lambda () (do-trace $cpcheck x2a)))]
@@ -1412,8 +1414,7 @@
                         (let ([x ((run-cp0)
                                   (lambda (x)
                                     (set! cpletrec-ran? #t)
-                                    (let ([x ($cp0 x)])
-                                      ($cpletrec x)))
+                                    ($cpletrec ($cptypes ($cp0 x))))
                                   x2)])
                           (if cpletrec-ran? x ($cpletrec x))))]
                  [x2b ($cpcheck x2a)])
