@@ -1755,6 +1755,7 @@
   ($continuation-winders [flags])
   ($cp0 [flags])
   ($cpcheck [flags])
+  ($cptypes [flags])
   ($cpletrec [flags])
   ($cpvalid [flags])
   ($c-stlv! [flags])
