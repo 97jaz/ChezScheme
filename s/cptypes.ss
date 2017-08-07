@@ -77,7 +77,8 @@ Notes:
 	   ral-empty
 	   ral-empty?
 	   ral-add
-	   ral-find/length)
+	   ral-find/length
+	   ral-common-suffix)
 
     (define-record-type ral
       [fields (immutable length)
@@ -156,7 +157,34 @@ Notes:
 		   [else
 		    (loop next)]))]
 	       [else
-		#f]))])))))
+		#f]))]))))
+
+    (define (ral-common-suffix x y)
+      (let* ([shorter-len (min (ral-length x) (ral-length y))]
+	     [x1 (ral-find/length x shorter-len)]
+	     [y1 (ral-find/length y shorter-len)])
+	(cond
+	 [(eq? x1 y1)
+	  x1]
+	 [else
+	  (let loop ([x1 x1] [y1 y1] [lo 0])
+	    (let ([len (ral-length x1)])
+	      (cond
+	       [(fx> (fx- len lo) 2)
+		(let* ([mid (fxquotient (fx+ len lo) 2)]
+		       [x2 (ral-find/length x1 mid)]
+		       [y2 (ral-find/length y1 mid)])
+		  (cond
+		   [(eq? x2 y2)
+		    (loop x1 y1 mid)]
+		   [else
+		    (loop x2 y2 lo)]))]
+	       [else
+		(let ([x2 (ral-next x1)]
+		      [y2 (ral-next y1)])
+		  (if (eq? x2 y2)
+		      x2
+		      (ral-next x2)))])))]))))
 
   (with-output-language (Lsrc Expr)
     (define void-rec `(quote ,(void)))
@@ -242,47 +270,26 @@ Notes:
               (pred-env-add/raw types x pred)]))]
         [else types]))
 
-  (define (pred-env-merge/raw types base n from skipped)
+  (define (pred-env-merge/raw types base from skipped)
     (let loop ([types types]
-               [base base]
-               [n n]
                [from from])
       (cond
-        [(and (not (ral-empty? from))
-              (not (eq? from base)))
+        [(not (eq? from base))
          (let ([types (cond
 		       [(member (ral-key from) skipped)
 			types]
 		       [else
-			(pred-env-add types (ral-key from) (ral-val from))])]
-	       [base (and base
-			  (if (fx> n 0)
-                              base
-                              (ral-next base)))])
-           (loop types base (fx- n 1) (ral-next from)))]
+			(pred-env-add types (ral-key from) (ral-val from))])])
+           (loop types (ral-next from)))]
         [else types])))
 
   (define (pred-env-merge types from skipped)
-    ; When possible we will trim the assoc in types to make it of the same
-    ; length of the assoc in from. But we will avoid this if it is too long.
-    (cond
-      #;[(not from)
-       types]
-      #;[(not types)
-       (pred-env-merge/raw pred-env-empty #f 0 (pred-env-assoc from) skipped)]
-      [(> (pred-env-depth types) (pred-env-depth from))
-       (pred-env-merge/raw types
-			   (ral-find/length (pred-env-assoc types)
-					    (pred-env-depth from))
-                            0
-                           (pred-env-assoc from)
-                           skipped)]
-      [else
-       (pred-env-merge/raw types
-                           (pred-env-assoc types)
-                           (fx- (pred-env-depth from) (pred-env-depth types))
-                           (pred-env-assoc from)
-                           skipped)]))
+    (pred-env-merge/raw types
+			(ral-common-suffix
+			 (pred-env-assoc types)
+			 (pred-env-assoc from))
+			(pred-env-assoc from)
+			skipped))
 
     (define (pred-env-lookup types x)
       (and types
