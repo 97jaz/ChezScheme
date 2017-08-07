@@ -71,24 +71,24 @@ Notes:
 
   ;; simple random-access association lists
   (module (ral-length
-	   ral-key
-	   ral-val
-	   ral-next
-	   ral-empty
-	   ral-empty?
-	   ral-add
-	   ral-find/length
-	   ral-common-suffix)
+           ral-key
+           ral-val
+           ral-next
+           ral-empty
+           ral-empty?
+           ral-add
+           ral-find/length
+           ral-common-suffix)
 
     (define-record-type ral
       [fields (immutable length)
-	      (immutable key)
-	      (immutable val)
-	      (immutable tails)]
+              (immutable key)
+              (immutable val)
+              (immutable tails)]
       [nongenerative #{ral pfwgip6390w7aye0aifx4slb4-0}]
       [sealed #t])
 
-    (define *max-height* 64)
+    (define *max-height* 59)
 
     (define ral-empty (make-ral 0 #f #f #f))
 
@@ -106,14 +106,15 @@ Notes:
     (define (ral-next ral)
       (ral-tail ral 0))
 
+    (define *mask* (fx1- (fxsll 1 *max-height*)))
+
     (define (choose-height)
-      (fxmin
-       *max-height*
-       (fx1+
-	(let loop ([n 0])
-	  (if (fx= 0 (random 2))
-	      n
-	      (loop (fx+ 1 n)))))))
+      (fx1+
+       (fxmax
+        0
+        (fxfirst-bit-set
+         (fxand (random (most-positive-fixnum))
+                *mask*)))))
 
     (define (ral-add r key val)
       (define len (fx+ 1 (ral-length r)))
@@ -121,70 +122,70 @@ Notes:
 
       (cond
        [(eq? ral-empty r)
-	(make-ral 1 key val (make-vector h ral-empty))]
+        (make-ral 1 key val (make-vector h ral-empty))]
        [else
-	(let ([new-tails (make-vector h)])
-	  (let loop ([i 0] [r r])
-	    (cond
-	     [(fx< i h)
-	      (let ([rh (ral-height r)])
-		(let inner ([i i])
-		  (cond
-		   [(fx= i h)
-		    (make-ral len key val new-tails)]
-		   [(fx< i rh)
-		    (vector-set! new-tails i r)
-		    (inner (fx+ 1 i))]
-		   [else
-		    (loop i (ral-tail r (fx- i 1)))])))]
-	     [else
-	      (make-ral len key val new-tails)])))]))
+        (let ([new-tails (make-vector h)])
+          (let loop ([i 0] [r r])
+            (cond
+             [(fx< i h)
+              (let ([rh (ral-height r)])
+                (let inner ([i i])
+                  (cond
+                   [(fx= i h)
+                    (make-ral len key val new-tails)]
+                   [(fx< i rh)
+                    (vector-set! new-tails i r)
+                    (inner (fx+ 1 i))]
+                   [else
+                    (loop i (ral-tail r (fx- i 1)))])))]
+             [else
+              (make-ral len key val new-tails)])))]))
 
     (define (ral-find/length r len)
       (let loop ([cur r])
-	(let ([cur-len (ral-length cur)])
-	  (cond
-	   [(fx= len cur-len)
-	    cur]
-	   [else
-	    (let inner ([i (fx- (ral-height cur) 1)])
-	      (cond
-	       [(fx>= i 0)
-		(let ([next (ral-tail cur i)])
-		  (cond
-		   [(fx< (ral-length next) len)
-		    (inner (fx- i 1))]
-		   [else
-		    (loop next)]))]
-	       [else
-		#f]))]))))
+        (let ([cur-len (ral-length cur)])
+          (cond
+           [(fx= len cur-len)
+            cur]
+           [else
+            (let inner ([i (fx- (ral-height cur) 1)])
+              (cond
+               [(fx>= i 0)
+                (let ([next (ral-tail cur i)])
+                  (cond
+                   [(fx< (ral-length next) len)
+                    (inner (fx- i 1))]
+                   [else
+                    (loop next)]))]
+               [else
+                #f]))]))))
 
     (define (ral-common-suffix x y)
       (let* ([shorter-len (min (ral-length x) (ral-length y))]
-	     [x1 (ral-find/length x shorter-len)]
-	     [y1 (ral-find/length y shorter-len)])
-	(cond
-	 [(eq? x1 y1)
-	  x1]
-	 [else
-	  (let loop ([x1 x1] [y1 y1] [lo 0])
-	    (let ([len (ral-length x1)])
-	      (cond
-	       [(fx> (fx- len lo) 2)
-		(let* ([mid (fxquotient (fx+ len lo) 2)]
-		       [x2 (ral-find/length x1 mid)]
-		       [y2 (ral-find/length y1 mid)])
-		  (cond
-		   [(eq? x2 y2)
-		    (loop x1 y1 mid)]
-		   [else
-		    (loop x2 y2 lo)]))]
-	       [else
-		(let ([x2 (ral-next x1)]
-		      [y2 (ral-next y1)])
-		  (if (eq? x2 y2)
-		      x2
-		      (ral-next x2)))])))]))))
+             [x1 (ral-find/length x shorter-len)]
+             [y1 (ral-find/length y shorter-len)])
+        (cond
+         [(eq? x1 y1)
+          x1]
+         [else
+          (let loop ([x1 x1] [y1 y1] [lo 0])
+            (let ([len (ral-length x1)])
+              (cond
+               [(fx> (fx- len lo) 2)
+                (let* ([mid (fxquotient (fx+ len lo) 2)]
+                       [x2 (ral-find/length x1 mid)]
+                       [y2 (ral-find/length y1 mid)])
+                  (cond
+                   [(eq? x2 y2)
+                    (loop x1 y1 mid)]
+                   [else
+                    (loop x2 y2 lo)]))]
+               [else
+                (let ([x2 (ral-next x1)]
+                      [y2 (ral-next y1)])
+                  (if (eq? x2 y2)
+                      x2
+                      (ral-next x2)))])))]))))
 
   (with-output-language (Lsrc Expr)
     (define void-rec `(quote ,(void)))
@@ -276,20 +277,20 @@ Notes:
       (cond
         [(not (eq? from base))
          (let ([types (cond
-		       [(member (ral-key from) skipped)
-			types]
-		       [else
-			(pred-env-add types (ral-key from) (ral-val from))])])
+                       [(member (ral-key from) skipped)
+                        types]
+                       [else
+                        (pred-env-add types (ral-key from) (ral-val from))])])
            (loop types (ral-next from)))]
         [else types])))
 
   (define (pred-env-merge types from skipped)
     (pred-env-merge/raw types
-			(ral-common-suffix
-			 (pred-env-assoc types)
-			 (pred-env-assoc from))
-			(pred-env-assoc from)
-			skipped))
+                        (ral-common-suffix
+                         (pred-env-assoc types)
+                         (pred-env-assoc from))
+                        (pred-env-assoc from)
+                        skipped))
 
     (define (pred-env-lookup types x)
       (and types
