@@ -1,13 +1,13 @@
 "cptypes.ss"
 ;;; cptypes.ss
 ;;; Copyright 1984-2017 Cisco Systems, Inc.
-;;; 
+;;;
 ;;; Licensed under the Apache License, Version 2.0 (the "License");
 ;;; you may not use this file except in compliance with the License.
 ;;; You may obtain a copy of the License at
-;;; 
+;;;
 ;;; http://www.apache.org/licenses/LICENSE-2.0
-;;; 
+;;;
 ;;; Unless required by applicable law or agreed to in writing, software
 ;;; distributed under the License is distributed on an "AS IS" BASIS,
 ;;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -69,6 +69,95 @@ Notes:
     (define (hamt-set hash key val) ($hamt-set hash key equal-hash equal? val))
   )
 
+  ;; simple random-access association lists
+  (module (ral-length
+	   ral-key
+	   ral-val
+	   ral-next
+	   ral-empty
+	   ral-empty?
+	   ral-add
+	   ral-find/length)
+
+    (define-record-type ral
+      [fields (immutable length)
+	      (immutable key)
+	      (immutable val)
+	      (immutable tails)]
+      [nongenerative #{ral pfwgip6390w7aye0aifx4slb4-0}]
+      [sealed #t])
+
+    (define *max-height* 64)
+
+    (define ral-empty (make-ral 0 #f #f #f))
+
+    (define (ral-empty? r)
+      (eq? r ral-empty))
+
+    (define (ral-height ral)
+      (cond
+       [(eq? ral-empty ral) *max-height*]
+       [else (vector-length (ral-tails ral))]))
+
+    (define (ral-tail ral i)
+      (vector-ref (ral-tails ral) i))
+
+    (define (ral-next ral)
+      (ral-tail ral 0))
+
+    (define (choose-height)
+      (fxmin
+       *max-height*
+       (fx1+
+	(let loop ([n 0])
+	  (if (fx= 0 (random 2))
+	      n
+	      (loop (fx+ 1 n)))))))
+
+    (define (ral-add r key val)
+      (define len (fx+ 1 (ral-length r)))
+      (define h (choose-height))
+
+      (cond
+       [(eq? ral-empty r)
+	(make-ral 1 key val (make-vector h ral-empty))]
+       [else
+	(let ([new-tails (make-vector h)])
+	  (let loop ([i 0] [r r])
+	    (cond
+	     [(fx< i h)
+	      (let ([rh (ral-height r)])
+		(let inner ([i i])
+		  (cond
+		   [(fx= i h)
+		    (make-ral len key val new-tails)]
+		   [(fx< i rh)
+		    (vector-set! new-tails i r)
+		    (inner (fx+ 1 i))]
+		   [else
+		    (loop i (ral-tail r (fx- i 1)))])))]
+	     [else
+	      (make-ral len key val new-tails)])))]))
+
+    (define (ral-find/length r len)
+      (let loop ([cur r])
+	(let ([cur-len (ral-length cur)])
+	  (cond
+	   [(fx= len cur-len)
+	    cur]
+	   [else
+	    (let inner ([i (fx- (ral-height cur) 1)])
+	      (cond
+	       [(fx>= i 0)
+		(let ([next (ral-tail cur i)])
+		  (cond
+		   [(fx< (ral-length next) len)
+		    (inner (fx- i 1))]
+		   [else
+		    (loop next)]))]
+	       [else
+		#f]))])))))
+
   (with-output-language (Lsrc Expr)
     (define void-rec `(quote ,(void)))
     (define true-rec `(quote #t))
@@ -121,17 +210,17 @@ Notes:
     (define-record-type pred-env
       (nongenerative)
       (opaque #t)
-      (fields hamt assoc depth))
-    ; depth is the length of the assoc. It may be bigger than the count of the
-    ; hamt in case a predicate was "replaced" with a more specific one. 
+      (fields hamt assoc))
+
+    (define (pred-env-depth types)
+      (ral-length (pred-env-assoc types)))
 
     (define pred-env-empty
-      (make-pred-env (hamt-empty) '() 0))
+      (make-pred-env (hamt-empty) ral-empty))
 
     (define (pred-env-add/raw types x pred)
       (make-pred-env (hamt-set (pred-env-hamt types) x pred)
-                     (cons (cons x pred) (pred-env-assoc types))
-                     (fx+ 1 (pred-env-depth types))))
+                     (ral-add (pred-env-assoc types) x pred)))
 
     (define (pred-env-add types x pred)
       (cond
@@ -159,39 +248,36 @@ Notes:
                [n n]
                [from from])
       (cond
-        [(and (not (null? from))
+        [(and (not (ral-empty? from))
               (not (eq? from base)))
-         (let* ([a (car from)]
-                [types (cond
-                         [(member (car a) skipped)
-                          types]
-                         [else
-                          (pred-env-add types (car a) (cdr a))])]
-                [base (and base
-                           (if (fx> n 0)
+         (let ([types (cond
+		       [(member (ral-key from) skipped)
+			types]
+		       [else
+			(pred-env-add types (ral-key from) (ral-val from))])]
+	       [base (and base
+			  (if (fx> n 0)
                               base
-                              (cdr base)))])
-           (loop types base (fx- n 1) (cdr from)))]
+                              (ral-next base)))])
+           (loop types base (fx- n 1) (ral-next from)))]
         [else types])))
 
   (define (pred-env-merge types from skipped)
     ; When possible we will trim the assoc in types to make it of the same
-    ; length of the assoc in from. But we will avoid this if it is too long. 
+    ; length of the assoc in from. But we will avoid this if it is too long.
     (cond
       #;[(not from)
        types]
       #;[(not types)
        (pred-env-merge/raw pred-env-empty #f 0 (pred-env-assoc from) skipped)]
-      [(> (pred-env-depth types) (fx* (pred-env-depth from) 5))
-       (pred-env-merge/raw types #f 0 (pred-env-assoc from) skipped)]
       [(> (pred-env-depth types) (pred-env-depth from))
-       (pred-env-merge/raw types 
-                           (list-tail (pred-env-assoc types)
-                                      (fx- (pred-env-depth types) (pred-env-depth from)))
+       (pred-env-merge/raw types
+			   (ral-find/length (pred-env-assoc types)
+					    (pred-env-depth from))
                             0
                            (pred-env-assoc from)
                            skipped)]
-      [else 
+      [else
        (pred-env-merge/raw types
                            (pred-env-assoc types)
                            (fx- (pred-env-depth from) (pred-env-depth types))
@@ -299,7 +385,7 @@ Notes:
                    [else #f]))]))
 
   ; nqm: no question mark
-  ; this is duplicated code, but it's useful to avoid the allocation 
+  ; this is duplicated code, but it's useful to avoid the allocation
   ; of the temporal strings to transform: vector -> vector?
   (define (primref-name/nqm->predicate name extend?)
     (case name
@@ -712,7 +798,7 @@ Notes:
               [e0 (nanopass-case (Lsrc Expr) e0
                     [(case-lambda ,preinfo (clause (,x* ...) ,interface ,body))
                      ; We are sure that body will run and that it will be run after the evaluation of the arguments,
-                     ; so we can use the types discovered in the arguments and also use the ret and types from the body. 
+                     ; so we can use the types discovered in the arguments and also use the ret and types from the body.
                      (guard (fx= interface (length x*)))
                      (for-each (lambda (t) (set-box! types (pred-env-merge (unbox types) (unbox t) '()))) t*)
                      (let ([subtypes (box (unbox types))])
@@ -731,7 +817,7 @@ Notes:
                     [(case-lambda ,preinfo ,cl* ...)
                      ; We are sure that it will run after the arguments are evaluated,
                      ; so we can effectively delay the evaluation of the lamba and use more types inside it.
-                     ; TODO: (difficult) Try to use the ret vales and discovered types. 
+                     ; TODO: (difficult) Try to use the ret vales and discovered types.
                      (for-each (lambda (t) (set-box! types (pred-env-merge (unbox types) (unbox t) '()))) t*)
                      (cptypes e0 'value (box #f) types #f #f)]
                     [else
