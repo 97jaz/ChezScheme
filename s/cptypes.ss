@@ -124,17 +124,20 @@ Notes:
     (define-record-type pred-env
       (nongenerative)
       (opaque #t)
-      (fields hamt assoc depth))
+      (fields hamt assoc depth
+              (mutable last-k) (mutable last-v)))
     ; depth is the length of the assoc. It may be bigger than the count of the
     ; hamt in case a predicate was "replaced" with a more specific one.
 
     (define pred-env-empty
-      (make-pred-env (hamt-empty) '() 0))
+      (make-pred-env (hamt-empty) '() 0 #f #f))
 
     (define (pred-env-add/raw types x pred)
       (make-pred-env (hamt-set (pred-env-hamt types) x pred)
                      (cons (cons x pred) (pred-env-assoc types))
-                     (fx+ 1 (pred-env-depth types))))
+                     (fx+ 1 (pred-env-depth types))
+                     x
+                     pred))
 
     (define (pred-env-add types x pred)
       (cond
@@ -202,9 +205,17 @@ Notes:
                            skipped)]))
 
     (define (pred-env-lookup types x)
-      (and types
-           (not (prelex-was-assigned x))
-           (hamt-ref (pred-env-hamt types) x #f)))
+      (cond
+        [(equal? x (pred-env-last-k types))
+         #;(display "+")
+         (pred-env-last-v types)]
+        [else (let ([ret (and types
+                              (not (prelex-was-assigned x))
+                              (hamt-ref (pred-env-hamt types) x #f))])
+                (pred-env-last-k-set! types x)
+                (pred-env-last-v-set! types ret)
+                #;(display "-")
+                ret)]))
   )
 
   (define (pred-env-add/ref types r pred)
