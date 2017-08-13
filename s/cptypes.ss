@@ -65,10 +65,11 @@ Notes:
   (module (hamt-empty hamt-ref hamt-set)
     (include "hamt.ss")
     (define hamt-empty $hamt-empty)
+    (define (identity x) x)
     (define (hamt-ref hash key default)
-      ($hamt-ref hash (prelex-id key) (lambda (x) x) eqv? default))
+      ($hamt-ref hash (prelex-counter key) identity fx= default))
     (define (hamt-set hash key val)
-      ($hamt-set hash (prelex-id key) (lambda (x) x) eqv? val))
+      ($hamt-set hash (prelex-counter key) identity fx= val))
   )
 
   (with-output-language (Lsrc Expr)
