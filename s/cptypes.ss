@@ -1,13 +1,13 @@
 "cptypes.ss"
 ;;; cptypes.ss
 ;;; Copyright 1984-2017 Cisco Systems, Inc.
-;;; 
+;;;
 ;;; Licensed under the Apache License, Version 2.0 (the "License");
 ;;; you may not use this file except in compliance with the License.
 ;;; You may obtain a copy of the License at
-;;; 
+;;;
 ;;; http://www.apache.org/licenses/LICENSE-2.0
-;;; 
+;;;
 ;;; Unless required by applicable law or agreed to in writing, software
 ;;; distributed under the License is distributed on an "AS IS" BASIS,
 ;;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -65,8 +65,11 @@ Notes:
   (module (hamt-empty hamt-ref hamt-set)
     (include "hamt.ss")
     (define hamt-empty $hamt-empty)
-    (define (hamt-ref hash key default) ($hamt-ref hash key equal-hash equal? default))
-    (define (hamt-set hash key val) ($hamt-set hash key equal-hash equal? val))
+    (define (identity x) x)
+    (define (hamt-ref hash key default)
+      ($hamt-ref hash (prelex-counter key) identity fx= default))
+    (define (hamt-set hash key val)
+      ($hamt-set hash (prelex-counter key) identity fx= val))
   )
 
   (with-output-language (Lsrc Expr)
@@ -124,7 +127,7 @@ Notes:
       (fields hamt assoc depth
               (mutable last-k) (mutable last-v)))
     ; depth is the length of the assoc. It may be bigger than the count of the
-    ; hamt in case a predicate was "replaced" with a more specific one. 
+    ; hamt in case a predicate was "replaced" with a more specific one.
 
     (define pred-env-empty
       (make-pred-env (hamt-empty) '() 0 #f #f))
@@ -179,7 +182,7 @@ Notes:
 
   (define (pred-env-merge types from skipped)
     ; When possible we will trim the assoc in types to make it of the same
-    ; length of the assoc in from. But we will avoid this if it is too long. 
+    ; length of the assoc in from. But we will avoid this if it is too long.
     (cond
       #;[(not from)
        types]
@@ -188,13 +191,13 @@ Notes:
       [(> (pred-env-depth types) (fx* (pred-env-depth from) 5))
        (pred-env-merge/raw types #f 0 (pred-env-assoc from) skipped)]
       [(> (pred-env-depth types) (pred-env-depth from))
-       (pred-env-merge/raw types 
+       (pred-env-merge/raw types
                            (list-tail (pred-env-assoc types)
                                       (fx- (pred-env-depth types) (pred-env-depth from)))
                             0
                            (pred-env-assoc from)
                            skipped)]
-      [else 
+      [else
        (pred-env-merge/raw types
                            (pred-env-assoc types)
                            (fx- (pred-env-depth from) (pred-env-depth types))
@@ -310,7 +313,7 @@ Notes:
                    [else #f]))]))
 
   ; nqm: no question mark
-  ; this is duplicated code, but it's useful to avoid the allocation 
+  ; this is duplicated code, but it's useful to avoid the allocation
   ; of the temporal strings to transform: vector -> vector?
   (define (primref-name/nqm->predicate name extend?)
     (case name
@@ -723,7 +726,7 @@ Notes:
               [e0 (nanopass-case (Lsrc Expr) e0
                     [(case-lambda ,preinfo (clause (,x* ...) ,interface ,body))
                      ; We are sure that body will run and that it will be run after the evaluation of the arguments,
-                     ; so we can use the types discovered in the arguments and also use the ret and types from the body. 
+                     ; so we can use the types discovered in the arguments and also use the ret and types from the body.
                      (guard (fx= interface (length x*)))
                      (for-each (lambda (t) (set-box! types (pred-env-merge (unbox types) (unbox t) '()))) t*)
                      (let ([subtypes (box (unbox types))])
@@ -742,7 +745,7 @@ Notes:
                     [(case-lambda ,preinfo ,cl* ...)
                      ; We are sure that it will run after the arguments are evaluated,
                      ; so we can effectively delay the evaluation of the lamba and use more types inside it.
-                     ; TODO: (difficult) Try to use the ret vales and discovered types. 
+                     ; TODO: (difficult) Try to use the ret vales and discovered types.
                      (for-each (lambda (t) (set-box! types (pred-env-merge (unbox types) (unbox t) '()))) t*)
                      (cptypes e0 'value (box #f) types #f #f)]
                     [else
