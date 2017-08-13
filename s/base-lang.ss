@@ -1,12 +1,12 @@
 ;;; base-lang.ss
 ;;; Copyright 1984-2017 Cisco Systems, Inc.
-;;; 
+;;;
 ;;; Licensed under the Apache License, Version 2.0 (the "License");
 ;;; you may not use this file except in compliance with the License.
 ;;; You may obtain a copy of the License at
-;;; 
+;;;
 ;;; http://www.apache.org/licenses/LICENSE-2.0
-;;; 
+;;;
 ;;; Unless required by applicable law or agreed to in writing, software
 ;;; distributed under the License is distributed on an "AS IS" BASIS,
 ;;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,7 +17,7 @@
          lookup-primref primref? primref-name primref-level primref-flags primref-arity primref-signatures
          sorry! make-preinfo preinfo? preinfo-lambda? preinfo-sexpr preinfo-sexpr-set! preinfo-src
          make-preinfo-lambda preinfo-lambda-name preinfo-lambda-name-set! preinfo-lambda-flags preinfo-lambda-libspec
-         prelex? make-prelex prelex-name prelex-name-set! prelex-flags prelex-flags-set!
+         prelex? make-prelex prelex-id prelex-name prelex-name-set! prelex-flags prelex-flags-set!
          prelex-source prelex-operand prelex-operand-set! prelex-uname make-prelex*
          target-fixnum? target-bignum?)
 
@@ -72,21 +72,22 @@
           [(_ ?level (quote name))
            (constant-name #'?level (datum name))]
           [(k ?level ?name) #'($lookup-primref ?level ?name)]))))
-  
+
   (module (prelex? make-prelex
+	   prelex-id
            prelex-name prelex-name-set!
            prelex-flags prelex-flags-set!
            prelex-source
            prelex-operand prelex-operand-set!
            prelex-uname)
     (define-record-type prelex
-      (nongenerative #{prelex grpmhtzqa9bflxfggfu6pp-0})
+      (nongenerative #{prelex grpmhtzqa9bflxfggfu6pp-1})
       (sealed #t)
-      (fields (mutable name) (mutable flags) source (mutable operand) (mutable $uname))
+      (fields id (mutable name) (mutable flags) source (mutable operand) (mutable $uname))
       (protocol
         (lambda (new)
           (lambda (name flags source operand)
-            (new name flags source operand #f)))))
+            (new (next-id) name flags source operand #f)))))
     (define prelex-uname
       (lambda (id)
         (or (prelex-$uname id)
@@ -94,6 +95,12 @@
               (with-tc-mutex
                 (or (prelex-$uname id)
                     (begin (prelex-$uname-set! id uname) uname)))))))
+    (define next-id
+      (let ([n 0])
+	(lambda ()
+	  (set! n (add1 n))
+	  (sub1 n))))
+
     (record-writer (record-type-descriptor prelex)
       (lambda (x p wr)
         (fprintf p "~s" (prelex-name x)))))
@@ -183,7 +190,7 @@
           [(src sexpr libspec name flags) ((pargs->new src sexpr) libspec name flags)]))))
 
   ; language of foreign types
-  (define-language Ltype 
+  (define-language Ltype
     (nongenerative-id #{Ltype czp82kxwe75y4e18-0})
     (terminals
       (exact-integer (bits))
