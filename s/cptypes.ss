@@ -63,8 +63,12 @@ Notes:
   (module (dict-empty dict-ref dict-set dict-merge)
     (include "intmap.ss")
     (define dict-empty $intmap-empty)
-    (define (dict-ref hash key default) ($intmap-ref hash key equal-hash equal? default))
-    (define (dict-set hash key val) ($intmap-set hash key equal-hash equal? val))
+
+    (define (dict-ref hash key default)
+      ($intmap-ref hash (prelex-uname key) symbol-hash eq? default))
+
+    (define (dict-set hash key val)
+      ($intmap-set hash (prelex-uname key) symbol-hash eq? val))
 
     (define (dict-merge left right skipped)
       (let ([result
