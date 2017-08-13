@@ -65,15 +65,15 @@ Notes:
     (define dict-empty $intmap-empty)
 
     (define (dict-ref hash key default)
-      ($intmap-ref hash (prelex-uname key) symbol-hash eq? default))
+      ($intmap-ref hash (prelex-counter key) identity fx= default))
 
     (define (dict-set hash key val)
-      ($intmap-set hash (prelex-uname key) symbol-hash eq? val))
+      ($intmap-set hash (prelex-counter key) identity fx= val))
 
     (define (dict-merge left right skipped)
       (let ([result
 	     ($intmap-merge equal?
-			    (lambda (x) x)
+			    identity
 			    (lambda (k v1 v2 nil)
 			      (cond
 			       [(or (member k skipped)
@@ -84,8 +84,8 @@ Notes:
 				'bottom]
 			       [else
 				v2]))
-			    (lambda (x) x)
-			    (lambda (x) x)
+			    identity
+			    identity
 			    left
 			    right)])
 	#;(printf "left: ~s\n\nright: ~s\n\nskipped: ~s\n\nresult: ~s\n===\n"
@@ -93,7 +93,9 @@ Notes:
 		right
 		skipped
 		result)
-	result)))
+	result))
+
+    (define (identity x) x))
 
   (with-output-language (Lsrc Expr)
     (define void-rec `(quote ,(void)))
