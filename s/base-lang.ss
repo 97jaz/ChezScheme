@@ -1,12 +1,12 @@
 ;;; base-lang.ss
 ;;; Copyright 1984-2017 Cisco Systems, Inc.
-;;; 
+;;;
 ;;; Licensed under the Apache License, Version 2.0 (the "License");
 ;;; you may not use this file except in compliance with the License.
 ;;; You may obtain a copy of the License at
-;;; 
+;;;
 ;;; http://www.apache.org/licenses/LICENSE-2.0
-;;; 
+;;;
 ;;; Unless required by applicable law or agreed to in writing, software
 ;;; distributed under the License is distributed on an "AS IS" BASIS,
 ;;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,14 +14,14 @@
 ;;; limitations under the License.
 
 (module (Lsrc Lsrc? Ltype Ltype? unparse-Ltype unparse-Lsrc count-Lsrc
-         lookup-primref primref? primref-name primref-level primref-flags primref-arity
+         lookup-primref primref? primref-name primref-level primref-flags primref-signatures primref-arity
          sorry! make-preinfo preinfo? preinfo-lambda? preinfo-sexpr preinfo-sexpr-set! preinfo-src
          make-preinfo-lambda preinfo-lambda-name preinfo-lambda-name-set! preinfo-lambda-flags preinfo-lambda-libspec
          prelex? make-prelex prelex-name prelex-name-set! prelex-flags prelex-flags-set!
          prelex-source prelex-operand prelex-operand-set! prelex-uname make-prelex*
          target-fixnum? target-bignum?)
 
-  (module (lookup-primref primref? primref-name primref-flags primref-arity primref-level)
+  (module (lookup-primref primref? primref-name primref-flags primref-arity primref-signatures primref-level)
     (include "primref.ss")
 
     (define $lookup-primref
@@ -72,7 +72,7 @@
           [(_ ?level (quote name))
            (constant-name #'?level (datum name))]
           [(k ?level ?name) #'($lookup-primref ?level ?name)]))))
-  
+
   (module (prelex? make-prelex
            prelex-name prelex-name-set!
            prelex-flags prelex-flags-set!
@@ -183,7 +183,7 @@
           [(src sexpr libspec name flags) ((pargs->new src sexpr) libspec name flags)]))))
 
   ; language of foreign types
-  (define-language Ltype 
+  (define-language Ltype
     (nongenerative-id #{Ltype czp82kxwe75y4e18-0})
     (terminals
       (exact-integer (bits))
