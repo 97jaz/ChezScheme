@@ -1,13 +1,13 @@
 "compile.ss"
 ;;; compile.ss
 ;;; Copyright 1984-2017 Cisco Systems, Inc.
-;;; 
+;;;
 ;;; Licensed under the Apache License, Version 2.0 (the "License");
 ;;; you may not use this file except in compliance with the License.
 ;;; You may obtain a copy of the License at
-;;; 
+;;;
 ;;; http://www.apache.org/licenses/LICENSE-2.0
-;;; 
+;;;
 ;;; Unless required by applicable law or agreed to in writing, software
 ;;; distributed under the License is distributed on an "AS IS" BASIS,
 ;;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -636,8 +636,10 @@
                         (let ([x ((run-cp0)
                                   (lambda (x)
                                     (set! cpletrec-ran? #t)
-                                    (let ([x ($pass-time 'cp0 (lambda () (do-trace $cp0 x)))])
-                                      ($pass-time 'cpletrec (lambda () (do-trace $cpletrec x)))))
+				    (let* ([x ($pass-time 'cp0 (lambda () (do-trace $cp0 x)))]
+					   [x ($pass-time 'cptypes (lambda () (do-trace $cptypes x)))]
+					   [x ($pass-time 'cpletrec (lambda () (do-trace $cpletrec x)))])
+				      x))
                                   x2)])
                           (if cpletrec-ran? x ($pass-time 'cpletrec (lambda () (do-trace $cpletrec x))))))]
                  [x2b ($pass-time 'cpcheck (lambda () (do-trace $cpcheck x2a)))]
@@ -750,13 +752,13 @@
       (library-info-uid (or (library-node-ctinfo node) (library-node-rtinfo node)))))
   (define library-node-version
     (lambda (node)
-      (library-info-version (or (library-node-ctinfo node) (library-node-rtinfo node)))))    
+      (library-info-version (or (library-node-ctinfo node) (library-node-rtinfo node)))))
   (define library-node-invoke-req*
     (lambda (node)
       (library/rt-info-invoke-req* (library-node-rtinfo node))))
   (define library-node-import-req*
     (lambda (node)
-      (library/ct-info-import-req* (library-node-ctinfo node))))            
+      (library/ct-info-import-req* (library-node-ctinfo node))))
 
   (define read-input-file
     (lambda (who ifn)
@@ -851,7 +853,7 @@
                                   [(visit-stuff? x) (read-inner! (visit-stuff-inner x) 'visit)]
                                   [else (read-inner! x 'load)])))
                             (cond
-                              [(eof-object? x) 
+                              [(eof-object? x)
                                (for-each
                                  (lambda (node)
                                    (unless (library-node-ctinfo node)
@@ -1189,7 +1191,7 @@
           (let ([cluster* (build-cluster* node*)] [lib-f (gen-var 'lib-f)])
             (let ([cluster-idx* (enumerate cluster*)])
               (build-let (list lib-f) (list (build-void))
-                `(seq 
+                `(seq
                    ,(build-set! lib-f
                       (let f ([cluster* cluster*] [cluster-idx* cluster-idx*])
                         (let ([idx (gen-var 'idx)])
@@ -1412,8 +1414,7 @@
                         (let ([x ((run-cp0)
                                   (lambda (x)
                                     (set! cpletrec-ran? #t)
-                                    (let ([x ($cp0 x)])
-                                      ($cpletrec x)))
+				    ($cpletrec ($cptypes ($cp0 x))))
                                   x2)])
                           (if cpletrec-ran? x ($cpletrec x))))]
                  [x2b ($cpcheck x2a)])

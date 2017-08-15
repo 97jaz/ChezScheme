@@ -1,13 +1,13 @@
 "interpret.ss"
 ;;; interpret.ss
 ;;; Copyright 1984-2017 Cisco Systems, Inc.
-;;; 
+;;;
 ;;; Licensed under the Apache License, Version 2.0 (the "License");
 ;;; you may not use this file except in compliance with the License.
 ;;; You may obtain a copy of the License at
-;;; 
+;;;
 ;;; http://www.apache.org/licenses/LICENSE-2.0
-;;; 
+;;;
 ;;; Unless required by applicable law or agreed to in writing, software
 ;;; distributed under the License is distributed on an "AS IS" BASIS,
 ;;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -654,7 +654,7 @@
                            (let ([x ((run-cp0)
                                      (lambda (x)
                                        (set! cpletrec-ran? #t)
-                                       ($cpletrec ($cp0 x #f)))
+                                       ($cpletrec ($cptypes ($cp0 x #f))))
                                      x2)])
                              (if cpletrec-ran? x ($cpletrec x))))]
                     [x2b ($cpcheck x2a)])
