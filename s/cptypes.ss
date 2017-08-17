@@ -588,7 +588,7 @@ Notes:
                 [(find (lambda (t)
                          (and (predicate-implies? (unbox r2) t)
                               (predicate-implies? (unbox r3) t)))
-                       '(boolean? char? gensym? symbol? ; lookup is slightly more efficient without boolean?
+                       '(boolean? char? gensym? symbol?
                          fixnum? integer? number?)) ; ensure they are order from less restrictive to most restrictive
                  => (lambda (t)
                       (set-box! ret t))]
@@ -706,7 +706,7 @@ Notes:
                               (with-output-language (Lsrc CaseLambdaClause)
                                 `(clause (,x* ...) ,interface ,body)))]))
                         cl*)])
-         (set-box! ret 'procedure?) ; Disabled until lookup is more efficient
+         (set-box! ret 'procedure?)
          `(case-lambda ,preinfo ,cl* ...))]
       [(call ,preinfo ,e0 ,e* ...)
        (let* ([r* (map (lambda (e) (box #f)) e*)]
@@ -743,7 +743,7 @@ Notes:
                       (let* ([r0 (box #f)]
                              [e0 (cptypes e0 'value r0 types #f #f)])
                         (for-each (lambda (t) (set-box! types (pred-env-merge (unbox types) (unbox t) '()))) t*)
-                        (set-box! types (pred-env-add/ref (unbox types) e0 'procedure?)) ; Disabled until lookup is more efficient
+                        (set-box! types (pred-env-add/ref (unbox types) e0 'procedure?))
                         e0)])])
          `(call ,preinfo ,e0 ,e* ...))]
       [(letrec ((,x* ,e*) ...) ,body)

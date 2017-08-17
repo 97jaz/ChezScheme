@@ -190,7 +190,7 @@
   (cptypes-equivalent-expansion?
     '(lambda (x) (when (procedure? x) (procedure? x)))
     '(lambda (x) (when (procedure? x) #t)))
-  #;(cptypes-equivalent-expansion? ; Disabled until lookup is more efficient
+  (cptypes-equivalent-expansion?
     '(lambda (f) (f) (procedure? f))
     '(lambda (f) (f) #t))
   (cptypes-equivalent-expansion?
