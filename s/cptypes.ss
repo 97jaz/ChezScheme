@@ -544,10 +544,6 @@ Notes:
                    [t-types3 (and t-types (box #f))]
                    [f-types3 (and f-types (box #f))]
                    [e3 (cptypes e3 ctxt r3 f-types1 t-types3 f-types3)])
-              (when t-types
-                (set-box! t-types (unbox types)))
-              (when f-types
-               (set-box! f-types (unbox types)))
               (cond
                 [(predicate-implies? (unbox r2) 'bottom?) ;check bottom first
                  (when t-types
@@ -558,10 +554,10 @@ Notes:
                  (set-box! types (unbox f-types1))]
                 [(predicate-implies-not? (unbox r2) false-rec)
                  (when f-types
-                   (set-box! f-types (pred-env-merge (unbox f-types) (unbox f-types3) '())))]
+                   (set-box! f-types (unbox f-types3)))]
                 [(predicate-implies? (unbox r2) false-rec)
                  (when t-types
-                   (set-box! t-types (pred-env-merge (unbox t-types) (unbox t-types3) '())))])
+                   (set-box! t-types (unbox t-types3)))])
               (cond
                 [(predicate-implies? (unbox r3) 'bottom?) ;check bottom first
                  (when t-types
@@ -572,19 +568,22 @@ Notes:
                  (set-box! types (unbox t-types1))]
                 [(predicate-implies-not? (unbox r3) false-rec)
                  (when f-types
-                   (set-box! f-types (pred-env-merge (unbox f-types) (unbox f-types2) '())))]
+                   (set-box! f-types (unbox f-types2)))]
                 [(predicate-implies? (unbox r3) false-rec)
                  (when t-types
-                   (set-box! t-types (pred-env-merge (unbox t-types) (unbox t-types2) '())))])
+                   (set-box! t-types (unbox t-types2)))])
               (cond ; TODO: Use a beter method to unify the ret types.
                 [(predicate-implies? (unbox r2) (unbox r3))
                  (set-box! ret (unbox r3))]
                 [(predicate-implies? (unbox r3) (unbox r2))
                  (set-box! ret (unbox r2))]
-                [(and (eq? ctxt 'test)
-                      (predicate-implies-not? (unbox r2) false-rec)
+                [(and (predicate-implies-not? (unbox r2) false-rec)
                       (predicate-implies-not? (unbox r3) false-rec))
-                 (set-box! ret true-rec)]
+                 (if (eq? ctxt 'test)
+                   (set-box! ret true-rec)
+                   (when f-types
+                     ; I don't expect to see this case, but just in case put a conservative value in f-types 
+                     (set-box! f-types #f)))]
                 [(find (lambda (t)
                          (and (predicate-implies? (unbox r2) t)
                               (predicate-implies? (unbox r3) t)))
@@ -711,7 +710,7 @@ Notes:
       [(call ,preinfo ,e0 ,e* ...)
        (let* ([r* (map (lambda (e) (box #f)) e*)]
               [t* (map (lambda (e) (box (unbox types))) e*)]
-              [e* (map (lambda (e r t) (cptypes e 'value r t (box #f) (box #f))) e* r* t*)]
+              [e* (map (lambda (e r t) (cptypes e 'value r t #f #f)) e* r* t*)]
               [e0 (nanopass-case (Lsrc Expr) e0
                     [(case-lambda ,preinfo (clause (,x* ...) ,interface ,body))
                      ; We are sure that body will run and that it will be run after the evaluation of the arguments,
@@ -749,7 +748,7 @@ Notes:
       [(letrec ((,x* ,e*) ...) ,body)
        (let* ([r* (map (lambda (e) (box #f)) e*)]
               [t* (map (lambda (e) (box (unbox types))) e*)]
-              [e* (map (lambda (e r t) (cptypes e 'value r t (box #f) (box #f))) e* r* t*)]
+              [e* (map (lambda (e r t) (cptypes e 'value r t #f #f)) e* r* t*)]
               [subtypes (box (unbox types))])
          (for-each (lambda (t) (set-box! subtypes (pred-env-merge (unbox subtypes) (unbox t) '()))) t*)
          (for-each (lambda (x r) (set-box! subtypes (pred-env-add (unbox subtypes) x (unbox r)))) x* r*)
