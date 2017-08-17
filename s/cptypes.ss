@@ -156,7 +156,7 @@ Notes:
               (pred-env-add/raw types x pred)]))]
         [else types]))
 
-  (define (pred-env-merge/raw types base n from skipped)
+  (define (pred-env-merge/raw types base n from)
     (let loop ([types types]
                [base base]
                [n n]
@@ -165,11 +165,7 @@ Notes:
         [(and (not (null? from))
               (not (eq? from base)))
          (let* ([a (car from)]
-                [types (cond
-                         [(member (car a) skipped)
-                          types]
-                         [else
-                          (pred-env-add types (car a) (cdr a))])]
+                [types (pred-env-add types (car a) (cdr a))]
                 [base (and base
                            (if (fx> n 0)
                               base
@@ -177,29 +173,23 @@ Notes:
            (loop types base (fx- n 1) (cdr from)))]
         [else types])))
 
-  (define (pred-env-merge types from skipped)
+  (define (pred-env-merge types from)
     ; When possible we will trim the assoc in types to make it of the same
     ; length of the assoc in from. But we will avoid this if it is too long.
     (cond
-      #;[(not from)
-       types]
-      #;[(not types)
-       (pred-env-merge/raw pred-env-empty #f 0 (pred-env-assoc from) skipped)]
-      [(> (pred-env-depth types) (fx* (pred-env-depth from) 5))
-       (pred-env-merge/raw types #f 0 (pred-env-assoc from) skipped)]
+      [(> (pred-env-depth types) (fx* (fx+ (pred-env-depth from) 1) 5))
+       (pred-env-merge/raw types #f 0 (pred-env-assoc from))]
       [(> (pred-env-depth types) (pred-env-depth from))
        (pred-env-merge/raw types
                            (list-tail (pred-env-assoc types)
                                       (fx- (pred-env-depth types) (pred-env-depth from)))
                             0
-                           (pred-env-assoc from)
-                           skipped)]
+                           (pred-env-assoc from))]
       [else
        (pred-env-merge/raw types
                            (pred-env-assoc types)
                            (fx- (pred-env-depth from) (pred-env-depth types))
-                           (pred-env-assoc from)
-                           skipped)]))
+                           (pred-env-assoc from))]))
 
     (define (pred-env-lookup types x)
       (and types
@@ -582,7 +572,7 @@ Notes:
                  (if (eq? ctxt 'test)
                    (set-box! ret true-rec)
                    (when f-types
-                     ; I don't expect to see this case, but just in case put a conservative value in f-types 
+                     ; I don't expect to see this case, but just in case put a conservative value in f-types
                      (set-box! f-types #f)))]
                 [(find (lambda (t)
                          (and (predicate-implies? (unbox r2) t)
@@ -602,7 +592,7 @@ Notes:
               [e* (map (lambda (e r t) (cptypes e 'value r t #f #f))
                        e* r* t*)]
               [ir `(call ,preinfo ,pr ,e* ...)])
-         (for-each (lambda (t) (set-box! types (pred-env-merge (unbox types) (unbox t) '()))) t*)
+         (for-each (lambda (t) (set-box! types (pred-env-merge (unbox types) (unbox t)))) t*)
          (set-box! ret (primref->result-predicate pr))
          (for-each (lambda (e n)
                      (let ([pred (primref->argument-predicate pr n)])
@@ -716,72 +706,41 @@ Notes:
                      ; We are sure that body will run and that it will be run after the evaluation of the arguments,
                      ; so we can use the types discovered in the arguments and also use the ret and types from the body.
                      (guard (fx= interface (length x*)))
-                     (for-each (lambda (t) (set-box! types (pred-env-merge (unbox types) (unbox t) '()))) t*)
-                     (let ([subtypes (box (unbox types))])
-                       (for-each (lambda (x r) (set-box! subtypes (pred-env-add (unbox subtypes) x (unbox r)))) x* r*)
-                       (let* ([t-subtypes (and t-types (box #f))]
-                              [f-subtypes (and f-types (box #f))]
-                              [body (cptypes body ctxt ret subtypes t-subtypes f-subtypes)])
-                         (set-box! types (pred-env-merge (unbox types) (unbox subtypes) x*))
-                         (when t-types
-                           (unless (eq? (unbox t-subtypes) (unbox subtypes))
-                             (set-box! t-types (pred-env-merge (unbox types) (unbox t-subtypes) x*))))
-                         (when f-types
-                           (unless (eq? (unbox f-subtypes) (unbox subtypes))
-                             (set-box! f-types (pred-env-merge (unbox types) (unbox f-subtypes) x*))))
-                         `(case-lambda ,preinfo (clause (,x* ...) ,interface ,body))))]
+                     (for-each (lambda (t) (set-box! types (pred-env-merge (unbox types) (unbox t)))) t*)
+                     (for-each (lambda (x r) (set-box! types (pred-env-add (unbox types) x (unbox r)))) x* r*)
+                     (let ([body (cptypes body ctxt ret types t-types f-types)])
+                       `(case-lambda ,preinfo (clause (,x* ...) ,interface ,body)))]
                     [(case-lambda ,preinfo ,cl* ...)
                      ; We are sure that it will run after the arguments are evaluated,
                      ; so we can effectively delay the evaluation of the lamba and use more types inside it.
                      ; TODO: (difficult) Try to use the ret vales and discovered types.
-                     (for-each (lambda (t) (set-box! types (pred-env-merge (unbox types) (unbox t) '()))) t*)
+                     (for-each (lambda (t) (set-box! types (pred-env-merge (unbox types) (unbox t)))) t*)
                      (cptypes e0 'value (box #f) types #f #f)]
                     [else
                      ; It's difficult to be sure the order the code will run,
                      ; so assume that the expresion may be evaluated before the arguments.
                       (let* ([r0 (box #f)]
                              [e0 (cptypes e0 'value r0 types #f #f)])
-                        (for-each (lambda (t) (set-box! types (pred-env-merge (unbox types) (unbox t) '()))) t*)
+                        (for-each (lambda (t) (set-box! types (pred-env-merge (unbox types) (unbox t)))) t*)
                         (set-box! types (pred-env-add/ref (unbox types) e0 'procedure?))
                         e0)])])
          `(call ,preinfo ,e0 ,e* ...))]
       [(letrec ((,x* ,e*) ...) ,body)
        (let* ([r* (map (lambda (e) (box #f)) e*)]
               [t* (map (lambda (e) (box (unbox types))) e*)]
-              [e* (map (lambda (e r t) (cptypes e 'value r t #f #f)) e* r* t*)]
-              [subtypes (box (unbox types))])
-         (for-each (lambda (t) (set-box! subtypes (pred-env-merge (unbox subtypes) (unbox t) '()))) t*)
-         (for-each (lambda (x r) (set-box! subtypes (pred-env-add (unbox subtypes) x (unbox r)))) x* r*)
-         (let* ([t-subtypes (and t-types (box #f))]
-                [f-subtypes (and f-types (box #f))]
-                [body (cptypes body ctxt ret subtypes t-subtypes f-subtypes)])
-           (set-box! types (pred-env-merge (unbox types) (unbox subtypes) x*))
-           (when t-types
-             (unless (eq? (unbox t-subtypes) (unbox subtypes))
-               (set-box! t-types (pred-env-merge (unbox types) (unbox t-subtypes) x*))))
-           (when f-types
-             (unless (eq? (unbox f-subtypes) (unbox subtypes))
-               (set-box! f-types (pred-env-merge (unbox types) (unbox f-subtypes) x*))))
+              [e* (map (lambda (e r t) (cptypes e 'value r t #f #f)) e* r* t*)])
+         (for-each (lambda (t) (set-box! types (pred-env-merge (unbox types) (unbox t)))) t*)
+         (for-each (lambda (x r) (set-box! types (pred-env-add (unbox types) x (unbox r)))) x* r*)
+         (let ([body (cptypes body ctxt ret types t-types f-types)])
            `(letrec ((,x* ,e*) ...) ,body)))]
       [(letrec* ([,x* ,e*] ...) ,body)
-       (let* ([subtypes (box (unbox types))]
-              [e* (let loop ([x* x*] [e* e*] [rev-e* '()])
+       (let* ([e* (let loop ([x* x*] [e* e*] [rev-e* '()])  ; this is like an ordered-map
                     (if (null? x*)
                         (reverse rev-e*)
                         (let* ([r (box #f)]
-                               [e (cptypes (car e*) 'value r subtypes #f #f)])
-                           (set-box! subtypes (pred-env-add (unbox subtypes) (car x*) (unbox r)))
+                               [e (cptypes (car e*) 'value r types #f #f)])
                            (loop (cdr x*) (cdr e*) (cons e rev-e*)))))]
-              [t-subtypes (and t-types (box #f))]
-              [f-subtypes (and f-types (box #f))]
-              [body (cptypes body ctxt ret subtypes t-subtypes f-subtypes)])
-         (set-box! types (pred-env-merge (unbox types) (unbox subtypes) x*))
-         (when t-types
-           (unless (eq? (unbox t-subtypes) (unbox subtypes))
-             (set-box! t-types (pred-env-merge (unbox types) (unbox t-subtypes) x*))))
-         (when f-types
-           (unless (eq? (unbox f-subtypes) (unbox subtypes))
-             (set-box! f-types (pred-env-merge (unbox types) (unbox f-subtypes) x*))))
+              [body (cptypes body ctxt ret types t-types f-types)])
          `(letrec* ([,x* ,e*] ...) ,body))]
       [,pr
        (when (all-set? (prim-mask proc) (primref-flags pr))
@@ -797,7 +756,7 @@ Notes:
               [t* (map (lambda (e) (box (unbox types))) e*)]
               [e* (map (lambda (e t) (cptypes e 'value (box #f) t #f #f)) e* t*)])
          (set-box! types (unbox types-rtd-expr))
-         (for-each (lambda (t) (set-box! types (pred-env-merge (unbox types) (unbox t) '()))) t*)
+         (for-each (lambda (t) (set-box! types (pred-env-merge (unbox types) (unbox t)))) t*)
          (set-box! ret (rtd->record-predicate rtd))
          `(record ,rtd ,rtd-expr ,e* ...))]
       [(record-ref ,rtd ,type ,index ,[cptypes : e 'value (box #f) types #f #f -> e])
@@ -808,8 +767,8 @@ Notes:
               [t2 (box (unbox types))]
               [e1 (cptypes e1 'value (box #f) t1 #f #f)]
               [e2 (cptypes e2 'value (box #f) t2 #f #f)])
-         (set-box! types (pred-env-merge (unbox types) (unbox t1) '()))
-         (set-box! types (pred-env-merge (unbox types) (unbox t2) '()))
+         (set-box! types (unbox t1))
+         (set-box! types (pred-env-merge (unbox types) (unbox t2)))
          (set-box! types (pred-env-add/ref (unbox types) e1 (rtd->record-predicate rtd)))
          `(record-set! ,rtd ,type ,index ,e1 ,e2))]
       [(record-type ,rtd ,[cptypes : e 'value (box #f) types #f #f -> e])
