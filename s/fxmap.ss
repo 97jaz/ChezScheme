@@ -17,23 +17,17 @@
 
  ;; record types
 
- (define-record-type $fxmap
-   [nongenerative #{$fxmap pfv8jm0fznpju1uw30h5qd4dd-0}])
-
  (define-record-type $branch
-   [parent $fxmap]
-   [fields count prefix mask left right]
+   [fields prefix mask left right]
    [nongenerative #{$branch pfv8jpsat5jrk6vq7vclc3ntg-0}]
    [sealed #t])
 
  (define-record-type $leaf
-   [parent $fxmap]
    [fields key val]
    [nongenerative #{$leaf pfv8jq2dzw50ox4f6vqm1ff5v-0}]
    [sealed #t])
 
  (define-record-type $empty
-   [parent $fxmap]
    [nongenerative #{$empty pfwk1nal7cs5dornqtzvda91m-0}]
    [sealed #t])
 
@@ -44,14 +38,20 @@
 
  ;; predicate
 
- (define fxmap? $fxmap?)
+ (define (fxmap? x)
+   (or ($branch? x)
+       ($leaf? x)
+       ($empty? x)))
 
  ;; count & empty
 
  (define (fxmap-count d)
-   (cond [($branch? d) ($branch-count d)]
-         [($leaf? d) 1]
-         [else 0]))
+   (let loop ([d d] [n 0])
+     (cond [($branch? d)
+	    (let ([nl (loop ($branch-left d) n)])
+	      (loop ($branch-right d) nl))]
+	   [($leaf? d) (fx1+ n)]
+	   [else n])))
 
  (define fxmap-empty? $empty?)
 
@@ -117,9 +117,14 @@
 
  ;; set and remove utilities
 
- (define (br p m l r)
-   (let ([c (fx+ (fxmap-count l) (fxmap-count r))])
-     (make-$branch c p m l r)))
+ (define-syntax define-syntax-rule
+  (syntax-rules ()
+    [(_ (name arg ...) e ...)
+     (define-syntax name
+       (syntax-rules ()
+         [(_ arg ...) e ...]))]))
+
+ (define br make-$branch)
 
  (define (br* p m l r)
    (cond [($empty? r) l]
@@ -141,7 +146,7 @@
  (define (branching-bit p m)
    (highest-set-bit (fxxor p m)))
 
- (define (mask h m)
+ (define-syntax-rule (mask h m)
    (fxand (fxior h (fx1- m)) (fxnot m)))
 
  (define (highest-set-bit x1)
@@ -153,7 +158,7 @@
           [x7 (fxior x6 (fxsrl x6 32))])
      (fxxor x7 (fxsrl x7 1))))
 
- (define (nomatch? h p m)
+ (define-syntax-rule (nomatch? h p m)
    (not (fx= (mask h m) p)))
 
  ;; merge

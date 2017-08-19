@@ -160,12 +160,10 @@
       (define empty-env empty-fxmap)
 
       (define (env-ref env id)
-        (let ([k (prelex-counter id)])
-          (fxmap-ref env k id)))
+	(fxmap-ref env (prelex-counter id) id))
 
       (define (env-set env id val)
-        (let ([k (prelex-counter id)])
-          (fxmap-set env k val)))
+	(fxmap-set env (prelex-counter id) val))
 
       (define-syntax with-extended-env
         (syntax-rules ()
