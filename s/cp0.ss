@@ -154,18 +154,18 @@
 
     ;;; environments
     (module (empty-env with-extended-env lookup)
-      (include "intmap-dict.ss")
-      (import dict)
+      (include "fxmap.ss")
+      (import fxmap)
 
-      (define empty-env empty-dict)
+      (define empty-env empty-fxmap)
 
       (define (env-ref env id)
         (let ([k (prelex-counter id)])
-          (dict-ref env eq? k k id)))
+          (fxmap-ref env k id)))
 
       (define (env-set env id val)
         (let ([k (prelex-counter id)])
-          (dict-set env eq? k k val)))
+          (fxmap-set env k val)))
 
       (define-syntax with-extended-env
         (syntax-rules ()
