@@ -1,13 +1,13 @@
 "cp0"
 ;;; cp0.ss
 ;;; Copyright 1984-2017 Cisco Systems, Inc.
-;;; 
+;;;
 ;;; Licensed under the Apache License, Version 2.0 (the "License");
 ;;; you may not use this file except in compliance with the License.
 ;;; You may obtain a copy of the License at
-;;; 
+;;;
 ;;; http://www.apache.org/licenses/LICENSE-2.0
-;;; 
+;;;
 ;;; Unless required by applicable law or agreed to in writing, software
 ;;; distributed under the License is distributed on an "AS IS" BASIS,
 ;;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -154,11 +154,18 @@
 
     ;;; environments
     (module (empty-env with-extended-env lookup)
-      (define empty-env '())
+      (include "intmap-dict.ss")
+      (import dict)
 
-      (define-record-type env
-        (nongenerative)
-        (fields old-ids new-ids next))
+      (define empty-env empty-dict)
+
+      (define (env-ref env id)
+        (let ([k (prelex-counter id)])
+          (dict-ref env eq? k k id)))
+
+      (define (env-set env id val)
+        (let ([k (prelex-counter id)])
+          (dict-set env eq? k k val)))
 
       (define-syntax with-extended-env
         (syntax-rules ()
@@ -170,30 +177,31 @@
 
       (define extend-env
         (lambda (old-env old-ids opnds)
-          (let ([new-ids (let loop ([old-ids old-ids] [opnds opnds] [rnew-ids '()])
-                           (if (null? old-ids)
-                               (reverse rnew-ids)
-                               (loop
-                                 (cdr old-ids) 
-                                 (and opnds (cdr opnds))
-                                 (cons
-                                   (let ([old-id (car old-ids)])
-                                     (make-prelex
-                                       (prelex-name old-id)
-                                       (let ([flags (prelex-flags old-id)])
-                                         (fxlogor
-                                           (fxlogand flags (constant prelex-sticky-mask))
-                                           (fxsll (fxlogand flags (constant prelex-is-mask))
-                                             (constant prelex-was-flags-offset))))
-                                       (prelex-source old-id)
-                                       (and opnds
-                                            (let ([opnd (car opnds)])
-                                              (when (operand? opnd)
-                                                (operand-name-set! opnd (prelex-name old-id)))
-                                              opnd))))
-                                   rnew-ids))))])
-            (values (make-env (list->vector old-ids) (list->vector new-ids) old-env) new-ids))))
-      
+          (let loop ([old-ids old-ids] [opnds opnds] [rnew-ids '()] [new-env old-env])
+            (cond
+             [(null? old-ids)
+              (values new-env (reverse rnew-ids))]
+             [else
+              (let* ([old-id (car old-ids)]
+                     [new-id
+                      (make-prelex
+                       (prelex-name old-id)
+                       (let ([flags (prelex-flags old-id)])
+                         (fxlogor
+                          (fxlogand flags (constant prelex-sticky-mask))
+                          (fxsll (fxlogand flags (constant prelex-is-mask))
+                                 (constant prelex-was-flags-offset))))
+                       (prelex-source old-id)
+                       (and opnds
+                            (let ([opnd (car opnds)])
+                              (when (operand? opnd)
+                                    (operand-name-set! opnd (prelex-name old-id)))
+                              opnd)))])
+                (loop (cdr old-ids)
+                      (and opnds (cdr opnds))
+                      (cons new-id rnew-ids)
+                      (env-set new-env old-id new-id)))]))))
+
       (define deinitialize-ids!
         (lambda (ids)
           ; clear operand field (a) to release storage the operands occupy and (b) to
@@ -204,22 +212,7 @@
 
       (define lookup
         (lambda (id env)
-          (let loop1 ([env env])
-            (if (eqv? env empty-env)
-                id
-                (let ([old-rib (env-old-ids env)] [new-rib (env-new-ids env)])
-                  (let ([n (vector-length old-rib)])
-                    (let loop2 ([i 0])
-                      (if (fx= i n)
-                          (loop1 (env-next env))
-                          (if (eq? (vector-ref old-rib i) id)
-                              (vector-ref new-rib i)
-                              (let ([i (fx+ i 1)])
-                                (if (fx= i n)
-                                    (loop1 (env-next env))
-                                    (if (eq? (vector-ref old-rib i) id)
-                                        (vector-ref new-rib i)
-                                        (loop2 (fx+ i 1)))))))))))))))
+          (env-ref env id))))
 
     (define cp0-make-temp ; returns an unassigned temporary
       (lambda (multiply-referenced?)
@@ -895,7 +888,7 @@
       (define-syntax with-memoize
         (lambda (x)
           (syntax-case x ()
-            [(k (flag-known flag) ?e e* ...) 
+            [(k (flag-known flag) ?e e* ...)
              (with-implicit (k memoize)
                #'(let ([$memoize (make-$memoize flag-known flag)] [e ?e])
                    (define-syntax memoize
@@ -995,7 +988,7 @@
               [(case-lambda ,preinfo ,cl* ...) #t]
               [(if ,e1 ,e2 ,e3) (memoize (and (ivory? e1) (ivory? e2) (ivory? e3)))]
               [(seq ,e1 ,e2) (memoize (and (ivory? e1) (ivory? e2)))]
-              [(record-ref ,rtd ,type ,index ,e) 
+              [(record-ref ,rtd ,type ,index ,e)
                ; here ivory? differs from pure?
                (and (not (fld-mutable? (list-ref (rtd-flds rtd) index)))
                     (memoize (ivory? e)))]
@@ -1275,11 +1268,11 @@
                     ; (let ((x e)) x) => e
                     ; x is clearly not assigned, even if flags are polluted and say it is
                     (car rhs*)]
-                   ; we drop the RHS of a let binding into the let body when the body expression is a call 
+                   ; we drop the RHS of a let binding into the let body when the body expression is a call
                    ; and we can do so without violating evaluation order of bindings wrt the let body:
                    ;  * for pure, singly referenced bindings, we drop them to the variable reference site
                    ;  * for impure, singly referenced bindings, we drop them only into the most deeply
-                   ;    nested call of the let body to ensure the expression is fully evaluated before 
+                   ;    nested call of the let body to ensure the expression is fully evaluated before
                    ;    any body (sub-)expressions
                    ; when we drop an impure let binding, we require the other bindings at the same level
                    ; to be unassigned so the location creation for the other bindings remains in the
@@ -2663,7 +2656,7 @@
               (values #t ctrtd-opaque-known)
               (nanopass-case (Lsrc Expr) (if x (result-exp (value-visit-operand! x)) false-rec)
                 [(quote ,d)
-                 (if d 
+                 (if d
                      (values #t ctrtd-opaque-known)
                      (if (and (not d) (or (not prtd) (and (record-type-opaque-known? prtd) (not (record-type-opaque? prtd)))))
                          (values #f ctrtd-opaque-known)
@@ -3593,7 +3586,7 @@
                          (build-let (list p) (list (value-visit-operand! ?p))
                            (let f ([t** temp**] [e** (reverse e**)] [ls* (cons ?ls ?ls*)])
                              (if (null? t**)
-                                 (let ([results 
+                                 (let ([results
                                         (let ([preinfo (app-preinfo ctxt)])
                                           (let g ([t** temp**])
                                             (if (null? (car t**))
