@@ -62,14 +62,10 @@ Notes:
   (import (nanopass))
   (include "base-lang.ss")
 
-  (module (hamt-empty hamt-ref hamt-set)
-    (include "hamt.ss")
-    (define hamt-empty $hamt-empty)
-    (define (identity x) x)
-    (define (hamt-ref hash key default)
-      ($hamt-ref hash (prelex-counter key) identity fx= default))
-    (define (hamt-set hash key val)
-      ($hamt-set hash (prelex-counter key) identity fx= val))
+  (module (empty-fxmap fxmap-ref fxmap-set fxmap-merge fxmap-branch)
+    (include "fxmap.ss")
+    (import fxmap)
+    (define fxmap-branch make-$branch)
   )
 
   (with-output-language (Lsrc Expr)
@@ -121,20 +117,13 @@ Notes:
 
   (module (pred-env-empty pred-env-add pred-env-merge pred-env-lookup)
 
-    (define-record-type pred-env
-      (nongenerative)
-      (opaque #t)
-      (fields hamt assoc depth))
-    ; depth is the length of the assoc. It may be bigger than the count of the
-    ; hamt in case a predicate was "replaced" with a more specific one.
-
-    (define pred-env-empty
-      (make-pred-env (hamt-empty) '() 0))
+    (define pred-env-empty empty-fxmap)
 
     (define (pred-env-add/raw types x pred)
-      (make-pred-env (hamt-set (pred-env-hamt types) x pred)
-                     (cons (cons x pred) (pred-env-assoc types))
-                     (fx+ 1 (pred-env-depth types))))
+      (fxmap-set types (prelex-counter x) pred))
+
+    (define (pred-env-ref types x)
+      (fxmap-ref types (prelex-counter x) #f))
 
     (define (pred-env-add types x pred)
       (cond
@@ -143,7 +132,7 @@ Notes:
               pred
               (not (eq? pred 'ptr?)) ; filter 'ptr? to reduce the size
               (not (prelex-was-assigned x)))
-         (let ([old (hamt-ref (pred-env-hamt types) x #f)])
+         (let ([old (pred-env-ref types x)])
            (cond
              [(not old)
               (pred-env-add/raw types x pred)]
@@ -156,46 +145,24 @@ Notes:
               (pred-env-add/raw types x pred)]))]
         [else types]))
 
-  (define (pred-env-merge/raw types base n from)
-    (let loop ([types types]
-               [base base]
-               [n n]
-               [from from])
-      (cond
-        [(and (not (null? from))
-              (not (eq? from base)))
-         (let* ([a (car from)]
-                [types (pred-env-add types (car a) (cdr a))]
-                [base (and base
-                           (if (fx> n 0)
-                              base
-                              (cdr base)))])
-           (loop types base (fx- n 1) (cdr from)))]
-        [else types])))
-
-  (define (pred-env-merge types from)
-    ; When possible we will trim the assoc in types to make it of the same
-    ; length of the assoc in from. But we will avoid this if it is too long.
-    (cond
-      [(> (pred-env-depth types) (fx* (fx+ (pred-env-depth from) 1) 5))
-       (pred-env-merge/raw types #f 0 (pred-env-assoc from))]
-      [(> (pred-env-depth types) (pred-env-depth from))
-       (pred-env-merge/raw types
-                           (list-tail (pred-env-assoc types)
-                                      (fx- (pred-env-depth types) (pred-env-depth from)))
-                            0
-                           (pred-env-assoc from))]
-      [else
-       (pred-env-merge/raw types
-                           (pred-env-assoc types)
-                           (fx- (pred-env-depth from) (pred-env-depth types))
-                           (pred-env-assoc from))]))
+    (define (pred-env-merge types from)
+      (fxmap-merge fxmap-branch
+		   (lambda (k v1 v2 nil)
+		     (cond [(predicate-implies? v1 v2) v1]
+			   [(predicate-implies-not? v1 v2) 'bottom]
+			   [(predicate-implies-not? v2 v1) 'bottom]
+			   [else v2]))
+		   (lambda (x) x)
+		   (lambda (x) x)
+		   (lambda (x) x)
+		   types
+		   from))
 
     (define (pred-env-lookup types x)
       (and types
            (not (prelex-was-assigned x))
-           (hamt-ref (pred-env-hamt types) x #f)))
-  )
+           (pred-env-ref types x)))
+    )
 
   (define (pred-env-add/ref types r pred)
     (nanopass-case (Lsrc Expr) r
