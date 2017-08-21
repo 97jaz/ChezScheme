@@ -12,7 +12,7 @@
 
   ;; internals
   $branch? make-$branch $branch-prefix $branch-mask $branch-left $branch-right
-  $leaf? $leaf-key $leaf-val
+  $leaf? make-$leaf $leaf-key $leaf-val
   $empty?)
 
  ;; record types
@@ -34,7 +34,6 @@
  ;; constants
 
  (define empty-fxmap (make-$empty))
- (define *nothing* (gensym))
 
  ;; predicate
 
@@ -204,7 +203,7 @@
 
             [($leaf? d1)
              (let ([k1 ($leaf-key d1)])
-               (cond [(fx= k1 k2) (f k1 ($leaf-val d1) ($leaf-val d2) *nothing*)]
+               (cond [(fx= k1 k2) (f d1 d2)]
                      [else        (join* k1 (g1 d1) k2 (g2 d2))]))]
 
             [else ; ($empty? d1)
@@ -229,7 +228,7 @@
 
           [($leaf? d2)
            (let ([k2 ($leaf-key d2)])
-             (cond [(fx= k1 k2) (f k1 ($leaf-val d1) ($leaf-val d2) *nothing*)]
+             (cond [(fx= k1 k2) (f d1 d2)]
                    [else        (join* k1 (g1 d1) k2 (g2 d2))]))]
 
           [else ; ($empty? d2)

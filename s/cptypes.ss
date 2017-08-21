@@ -61,12 +61,7 @@ Notes:
 (let ()
   (import (nanopass))
   (include "base-lang.ss")
-
-  (module (empty-fxmap fxmap-ref fxmap-set fxmap-merge fxmap-branch)
-    (include "fxmap.ss")
-    (import fxmap)
-    (define fxmap-branch make-$branch)
-  )
+  (include "fxmap.ss")
 
   (with-output-language (Lsrc Expr)
     (define void-rec `(quote ,(void)))
@@ -116,14 +111,9 @@ Notes:
   )
 
   (module (pred-env-empty pred-env-add pred-env-merge pred-env-lookup)
+    (import fxmap)
 
     (define pred-env-empty empty-fxmap)
-
-    (define (pred-env-add/raw types x pred)
-      (fxmap-set types (prelex-counter x) pred))
-
-    (define (pred-env-ref types x)
-      (fxmap-ref types (prelex-counter x) #f))
 
     (define (pred-env-add types x pred)
       (cond
@@ -145,23 +135,36 @@ Notes:
               (pred-env-add/raw types x pred)]))]
         [else types]))
 
+    (define (pred-env-add/raw types x pred)
+      (fxmap-set types (prelex-counter x) pred))
+
     (define (pred-env-merge types from)
-      (fxmap-merge fxmap-branch
-		   (lambda (k v1 v2 nil)
-		     (cond [(predicate-implies? v1 v2) v1]
-			   [(predicate-implies-not? v1 v2) 'bottom]
-			   [(predicate-implies-not? v2 v1) 'bottom]
-			   [else v2]))
+      (fxmap-merge make-$branch
+		   choose-value
 		   (lambda (x) x)
 		   (lambda (x) x)
 		   (lambda (x) x)
 		   types
 		   from))
 
+    (define (choose-value left-leaf right-leaf)
+      (let ([v1 ($leaf-val left-leaf)]
+	    [v2 ($leaf-val right-leaf)])
+	(cond [(predicate-implies? v1 v2)
+	       left-leaf]
+	      [(or (predicate-implies-not? v1 v2)
+		   (predicate-implies-not? v2 v1))
+	       (make-$leaf ($leaf-key left-leaf) 'bottom)]
+	      [else
+	       right-leaf])))
+
     (define (pred-env-lookup types x)
       (and types
            (not (prelex-was-assigned x))
            (pred-env-ref types x)))
+
+    (define (pred-env-ref types x)
+      (fxmap-ref types (prelex-counter x) #f))
     )
 
   (define (pred-env-add/ref types r pred)
