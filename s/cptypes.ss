@@ -615,8 +615,8 @@ Notes:
                  (when t-types
                    (set-box! t-types (pred-env-add/ref (unbox types) (car e*) pred)))
                  ir]))]
-           #;[(and (fx>= (length e*) 1)
-                 (eq? (primref-name pr) 'record?))
+           [(and (fx>= (length e*) 1)
+                 (eq? (primref-name pr) '$record))
             (set-box! ret (rtd->record-predicate (car e*)))
             ir]
            [(and (fx= (length e*) 2)
