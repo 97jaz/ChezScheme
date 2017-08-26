@@ -130,7 +130,7 @@ Notes:
               types]
              [(or (predicate-implies-not? old pred)
                   (predicate-implies-not? pred old))
-              (pred-env-add/raw types x 'bottom)]
+              (pred-env-add/raw types x 'bottom?)]
              [else
               (pred-env-add/raw types x pred)]))]
         [else types]))
@@ -154,7 +154,7 @@ Notes:
 	       left-leaf]
 	      [(or (predicate-implies-not? v1 v2)
 		   (predicate-implies-not? v2 v1))
-	       (make-$leaf ($leaf-key left-leaf) 'bottom)]
+	       (make-$leaf ($leaf-key left-leaf) 'bottom?)]
 	      [else
 	       right-leaf])))
 
@@ -615,8 +615,8 @@ Notes:
                  (when t-types
                    (set-box! t-types (pred-env-add/ref (unbox types) (car e*) pred)))
                  ir]))]
-           [(and (fx>= (length e*) 1)
-                 (eq? (primref-name pr) 'record))
+           #;[(and (fx>= (length e*) 1)
+                 (eq? (primref-name pr) 'record?))
             (set-box! ret (rtd->record-predicate (car e*)))
             ir]
            [(and (fx= (length e*) 2)
